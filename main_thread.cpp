@@ -1,19 +1,13 @@
 #include "mbed.h"
 #include "canPayloadCreator.hh"
-#include "sharedWithCanPayloadCreator.hh"
+#include "sharedWithAcquisitionSW.hh"
  
-#define NUM_THREADS                 14
 #define THREAD_TIME_INTERVAL_SEC    2
 Serial pc(USBTX, USBRX); // tx, rx
 DigitalOut led1(LED1);
 
-Thread thread_CANManager;
 Ticker dataTimer;
-
 bool bTimerFlag = false;
-
-int * pIdsToIdx;
-
 
 void timerCallback(void) {
     bTimerFlag = true;
@@ -25,11 +19,10 @@ void addDataToBuffer(int sensorIdx, int * pData){
     CPC->updateSensorData( sensorIdx, pData );    
 }
 
-/* main threads*/
-
-
+/* main thread*/
 #define SENSOR_1_ID 1
 int main() {
+	/*INIT storage classes needed for all of the threads*/
     CPC = new canPayloadCreator();
     
     // initialize sensors and add a storage element to the data buffer
@@ -37,9 +30,15 @@ int main() {
     CPC->addSensor(SENSOR_1_ID);   
     
     CPC->Init();
-    //  set up main processing loops
-    thread_CANManager.start(thread_canPayloadCreator_main);
+	
+    // start CAN message threads
+    thread_CANager.start(thread_canPayloadCreator_main);
 
+	// start payload creator thread
+	thread_CPC.start(thread_canPayloadCreator_main);
+	
+	//  TODO: start data acquisition loops
+	// SAMPLE INTERNAL DATA LOOP
     dataTimer.attach(&timerCallback, SENSOR_ACQ_SECS);
     while(1)
     {
